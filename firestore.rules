@@ -1,0 +1,17 @@
+rules_version = '2';
+service cloud.firestore {
+  match /databases/{database}/documents {
+    // Incidents collection
+    match /incidents/{incidentId} {
+      // Anyone can read verified incidents (public app)
+      allow read: if resource.data.status == 1; // IncidentStatus.verified
+
+      // Anyone can create (submit) a new incident
+      allow create: if request.resource.data.keys().hasAll(['latitude', 'longitude', 'address', 'description', 'type', 'status', 'dateTime', 'createdAt'])
+                    && request.resource.data.status == 0; // Must be pending
+
+      // Only admin can update/delete (for moderation)
+      allow update, delete: if false; // Handle via Firebase Admin SDK
+    }
+  }
+}
