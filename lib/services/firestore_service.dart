@@ -1,8 +1,12 @@
 import 'package:cloud_firestore/cloud_firestore.dart';
+import 'package:firebase_core/firebase_core.dart';
 import '../models/incident.dart';
+import '../models/convicted_person.dart';
+import '../models/journalist.dart';
 
 class FirestoreService {
-  final FirebaseFirestore _db = FirebaseFirestore.instance;
+  final FirebaseFirestore _db =
+      FirebaseFirestore.instanceFor(app: Firebase.app(), databaseId: 'predatoris');
 
   static const String _collection = 'incidents';
 
@@ -53,5 +57,57 @@ class FirestoreService {
         .get();
 
     return snapshot.docs.map((doc) => Incident.fromFirestore(doc)).toList();
+  }
+
+  // ── Convicted Persons ──
+
+  static const String _personsCollection = 'convicted_persons';
+
+  Future<void> submitPerson(ConvictedPerson person) async {
+    await _db.collection(_personsCollection).add(person.toFirestore());
+  }
+
+  Future<List<ConvictedPerson>> getVerifiedPersons() async {
+    final snapshot = await _db
+        .collection(_personsCollection)
+        .where('status', isEqualTo: PersonStatus.verified.index)
+        .orderBy('createdAt', descending: true)
+        .get();
+    return snapshot.docs
+        .map((doc) => ConvictedPerson.fromFirestore(doc))
+        .toList();
+  }
+
+  Future<List<ConvictedPerson>> searchPersons(String query) async {
+    final all = await getVerifiedPersons();
+    final q = query.toLowerCase();
+    return all
+        .where((p) =>
+            p.firstName.toLowerCase().contains(q) ||
+            p.lastName.toLowerCase().contains(q))
+        .toList();
+  }
+
+  /// Returns a journalist's public profile only (no phoneNumber).
+  Future<Journalist?> getJournalistByPseudo(String pseudo) async {
+    final snapshot = await _db
+        .collection('journalists')
+        .where('pseudo', isEqualTo: pseudo)
+        .limit(1)
+        .get();
+    if (snapshot.docs.isEmpty) return null;
+    final doc = snapshot.docs.first;
+    final data = doc.data();
+    // Return only public fields - strip sensitive data
+    return Journalist(
+      uid: doc.id,
+      phoneNumber: '', // never expose phone number publicly
+      pseudo: data['pseudo'] ?? '',
+      bio: data['bio'] ?? '',
+      instagram: data['instagram'],
+      twitter: data['twitter'],
+      linkedin: data['linkedin'],
+      createdAt: (data['createdAt'] as Timestamp).toDate(),
+    );
   }
 }

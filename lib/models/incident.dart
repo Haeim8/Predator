@@ -5,12 +5,20 @@ enum IncidentType {
   harassment,
   violence,
   other,
+  individual,
 }
 
 enum IncidentStatus {
   pending,
   verified,
   rejected,
+}
+
+enum DangerLevel {
+  vigilance,  // 1 - vert
+  risque,     // 2 - jaune
+  incident,   // 3 - orange
+  urgence,    // 4 - rouge
 }
 
 class Incident {
@@ -25,6 +33,13 @@ class Incident {
   final DateTime createdAt;
   final String? source;
   final bool isAnonymous;
+  final List<String> mediaUrls;
+  final String? socialMediaUrl;
+  final String? verifiedBy;
+  final DateTime? verifiedAt;
+  final int viewCount;
+  final String? rejectionReason;
+  final DangerLevel dangerLevel;
 
   Incident({
     required this.id,
@@ -38,6 +53,13 @@ class Incident {
     required this.createdAt,
     this.source,
     this.isAnonymous = true,
+    this.mediaUrls = const [],
+    this.socialMediaUrl,
+    this.dangerLevel = DangerLevel.vigilance,
+    this.verifiedBy,
+    this.verifiedAt,
+    this.viewCount = 0,
+    this.rejectionReason,
   });
 
   factory Incident.fromFirestore(DocumentSnapshot doc) {
@@ -54,6 +76,15 @@ class Incident {
       createdAt: (data['createdAt'] as Timestamp).toDate(),
       source: data['source'],
       isAnonymous: data['isAnonymous'] ?? true,
+      mediaUrls: List<String>.from(data['mediaUrls'] ?? []),
+      socialMediaUrl: data['socialMediaUrl'],
+      verifiedBy: data['verifiedBy'],
+      verifiedAt: data['verifiedAt'] != null
+          ? (data['verifiedAt'] as Timestamp).toDate()
+          : null,
+      viewCount: data['viewCount'] ?? 0,
+      rejectionReason: data['rejectionReason'],
+      dangerLevel: DangerLevel.values[(data['dangerLevel'] ?? 0).clamp(0, 3)],
     );
   }
 
@@ -69,6 +100,14 @@ class Incident {
       'createdAt': Timestamp.fromDate(createdAt),
       'source': source,
       'isAnonymous': isAnonymous,
+      'mediaUrls': mediaUrls,
+      'socialMediaUrl': socialMediaUrl,
+      'verifiedBy': verifiedBy,
+      'verifiedAt':
+          verifiedAt != null ? Timestamp.fromDate(verifiedAt!) : null,
+      'viewCount': viewCount,
+      'rejectionReason': rejectionReason,
+      'dangerLevel': dangerLevel.index,
     };
   }
 
@@ -82,6 +121,8 @@ class Incident {
         return 'Violence';
       case IncidentType.other:
         return 'Other';
+      case IncidentType.individual:
+        return 'Individu';
     }
   }
 }

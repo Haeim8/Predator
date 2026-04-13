@@ -1,6 +1,8 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_animate/flutter_animate.dart';
 import 'package:intl/intl.dart';
+import 'package:url_launcher/url_launcher.dart';
+import 'package:cached_network_image/cached_network_image.dart';
 import 'package:predator/l10n/app_localizations.dart';
 import '../core/theme.dart';
 import '../models/incident.dart';
@@ -10,6 +12,16 @@ class IncidentDetailSheet extends StatelessWidget {
 
   const IncidentDetailSheet({super.key, required this.incident});
 
+  Future<void> _openUrl(String url) async {
+    String fullUrl = url;
+    if (!url.startsWith('http')) fullUrl = 'https://$url';
+    final uri = Uri.parse(fullUrl);
+    if (!uri.scheme.startsWith('http')) return;
+    if (await canLaunchUrl(uri)) {
+      await launchUrl(uri, mode: LaunchMode.externalApplication);
+    }
+  }
+
   @override
   Widget build(BuildContext context) {
     final isDark = Theme.of(context).brightness == Brightness.dark;
@@ -18,10 +30,10 @@ class IncidentDetailSheet extends StatelessWidget {
 
     return Container(
       constraints: BoxConstraints(
-        maxHeight: MediaQuery.of(context).size.height * 0.55,
+        maxHeight: MediaQuery.of(context).size.height * 0.75,
       ),
       decoration: BoxDecoration(
-        color: isDark ? PredatorTheme.darkSurface : Colors.white,
+        color: isDark ? VigileTheme.darkSurface : Colors.white,
         borderRadius: const BorderRadius.vertical(top: Radius.circular(24)),
       ),
       child: Column(
@@ -84,7 +96,7 @@ class IncidentDetailSheet extends StatelessWidget {
                           vertical: 4,
                         ),
                         decoration: BoxDecoration(
-                          color: PredatorTheme.safeGreen.withValues(alpha: 0.15),
+                          color: VigileTheme.safeGreen.withValues(alpha: 0.15),
                           borderRadius: BorderRadius.circular(6),
                         ),
                         child: Row(
@@ -93,7 +105,7 @@ class IncidentDetailSheet extends StatelessWidget {
                             Icon(
                               Icons.verified,
                               size: 14,
-                              color: PredatorTheme.safeGreen,
+                              color: VigileTheme.safeGreen,
                             ),
                             const SizedBox(width: 4),
                             Text(
@@ -101,7 +113,7 @@ class IncidentDetailSheet extends StatelessWidget {
                               style: TextStyle(
                                 fontSize: 11,
                                 fontWeight: FontWeight.w600,
-                                color: PredatorTheme.safeGreen,
+                                color: VigileTheme.safeGreen,
                               ),
                             ),
                           ],
@@ -151,8 +163,8 @@ class IncidentDetailSheet extends StatelessWidget {
                     padding: const EdgeInsets.all(16),
                     decoration: BoxDecoration(
                       color: isDark
-                          ? PredatorTheme.darkCard
-                          : PredatorTheme.lightBg,
+                          ? VigileTheme.darkCard
+                          : VigileTheme.lightBg,
                       borderRadius: BorderRadius.circular(12),
                     ),
                     child: Text(
@@ -165,6 +177,152 @@ class IncidentDetailSheet extends StatelessWidget {
                     ),
                   ).animate().fadeIn(delay: 400.ms, duration: 300.ms),
 
+                  // ── Médias ──
+                  if (incident.mediaUrls.isNotEmpty) ...[
+                    const SizedBox(height: 20),
+                    Text(
+                      'Preuves',
+                      style: TextStyle(
+                        fontSize: 16,
+                        fontWeight: FontWeight.w600,
+                        color: isDark ? Colors.white : Colors.black87,
+                      ),
+                    ),
+                    const SizedBox(height: 10),
+                    SizedBox(
+                      height: 180,
+                      child: ListView.separated(
+                        scrollDirection: Axis.horizontal,
+                        itemCount: incident.mediaUrls.length,
+                        separatorBuilder: (_, _) => const SizedBox(width: 10),
+                        itemBuilder: (context, index) {
+                          final url = incident.mediaUrls[index];
+                          final isVideo = url.contains('.mp4') ||
+                              url.contains('.mov') ||
+                              url.contains('.avi');
+
+                          if (isVideo) {
+                            return GestureDetector(
+                              onTap: () => _openUrl(url),
+                              child: Container(
+                                width: 180,
+                                decoration: BoxDecoration(
+                                  color: isDark
+                                      ? VigileTheme.darkCard
+                                      : Colors.grey[200],
+                                  borderRadius: BorderRadius.circular(12),
+                                ),
+                                child: const Center(
+                                  child: Column(
+                                    mainAxisAlignment: MainAxisAlignment.center,
+                                    children: [
+                                      Icon(Icons.play_circle_filled,
+                                          color: VigileTheme.primaryRed,
+                                          size: 48),
+                                      SizedBox(height: 8),
+                                      Text('Voir la vidéo',
+                                          style: TextStyle(
+                                              fontWeight: FontWeight.w500)),
+                                    ],
+                                  ),
+                                ),
+                              ),
+                            );
+                          }
+
+                          return GestureDetector(
+                            onTap: () => _showFullImage(context, url),
+                            child: ClipRRect(
+                              borderRadius: BorderRadius.circular(12),
+                              child: CachedNetworkImage(
+                                imageUrl: url,
+                                width: 180,
+                                height: 180,
+                                fit: BoxFit.cover,
+                                placeholder: (_, _) => Container(
+                                  width: 180,
+                                  color: isDark
+                                      ? VigileTheme.darkCard
+                                      : Colors.grey[200],
+                                  child: const Center(
+                                    child: CircularProgressIndicator(
+                                      strokeWidth: 2,
+                                      color: VigileTheme.primaryRed,
+                                    ),
+                                  ),
+                                ),
+                                errorWidget: (_, _, _) => Container(
+                                  width: 180,
+                                  color: isDark
+                                      ? VigileTheme.darkCard
+                                      : Colors.grey[200],
+                                  child: const Icon(Icons.broken_image,
+                                      color: Colors.grey),
+                                ),
+                              ),
+                            ),
+                          );
+                        },
+                      ),
+                    ).animate().fadeIn(delay: 450.ms, duration: 300.ms),
+                  ],
+
+                  // ── Lien réseau social ──
+                  if (incident.socialMediaUrl != null &&
+                      incident.socialMediaUrl!.isNotEmpty) ...[
+                    const SizedBox(height: 16),
+                    GestureDetector(
+                      onTap: () => _openUrl(incident.socialMediaUrl!),
+                      child: Container(
+                        width: double.infinity,
+                        padding: const EdgeInsets.all(14),
+                        decoration: BoxDecoration(
+                          color: Colors.blue.withValues(alpha: 0.08),
+                          borderRadius: BorderRadius.circular(12),
+                          border: Border.all(
+                            color: Colors.blue.withValues(alpha: 0.2),
+                          ),
+                        ),
+                        child: Row(
+                          children: [
+                            const Icon(Icons.share,
+                                color: Colors.blue, size: 20),
+                            const SizedBox(width: 10),
+                            Expanded(
+                              child: Column(
+                                crossAxisAlignment: CrossAxisAlignment.start,
+                                children: [
+                                  Text(
+                                    'Source originale',
+                                    style: TextStyle(
+                                      fontSize: 12,
+                                      fontWeight: FontWeight.w600,
+                                      color: Colors.blue,
+                                    ),
+                                  ),
+                                  const SizedBox(height: 2),
+                                  Text(
+                                    incident.socialMediaUrl!,
+                                    style: TextStyle(
+                                      fontSize: 13,
+                                      color: isDark
+                                          ? Colors.white54
+                                          : Colors.black45,
+                                    ),
+                                    maxLines: 1,
+                                    overflow: TextOverflow.ellipsis,
+                                  ),
+                                ],
+                              ),
+                            ),
+                            const Icon(Icons.open_in_new,
+                                color: Colors.blue, size: 18),
+                          ],
+                        ),
+                      ),
+                    ).animate().fadeIn(delay: 500.ms, duration: 300.ms),
+                  ],
+
                   // Source if available
                   if (incident.source != null &&
                       incident.source!.isNotEmpty) ...[
@@ -173,7 +331,7 @@ class IncidentDetailSheet extends StatelessWidget {
                       Icons.link,
                       incident.source!,
                       isDark,
-                    ).animate().fadeIn(delay: 500.ms, duration: 300.ms),
+                    ).animate().fadeIn(delay: 550.ms, duration: 300.ms),
                   ],
 
                   const SizedBox(height: 24),
@@ -183,11 +341,11 @@ class IncidentDetailSheet extends StatelessWidget {
                     width: double.infinity,
                     padding: const EdgeInsets.all(12),
                     decoration: BoxDecoration(
-                      color: PredatorTheme.warningYellow
+                      color: VigileTheme.warningYellow
                           .withValues(alpha: 0.1),
                       borderRadius: BorderRadius.circular(10),
                       border: Border.all(
-                        color: PredatorTheme.warningYellow
+                        color: VigileTheme.warningYellow
                             .withValues(alpha: 0.3),
                       ),
                     ),
@@ -196,13 +354,13 @@ class IncidentDetailSheet extends StatelessWidget {
                         Icon(
                           Icons.info_outline,
                           size: 18,
-                          color: PredatorTheme.warningYellow,
+                          color: VigileTheme.warningYellow,
                         ),
                         const SizedBox(width: 10),
                         Expanded(
                           child: Text(
-                            'Information verified by the moderation team. '
-                            'No personal data is disclosed.',
+                            'Information vérifiée par l\'équipe de modération. '
+                            'Aucune donnée personnelle n\'est divulguée.',
                             style: TextStyle(
                               fontSize: 12,
                               color: isDark ? Colors.white54 : Colors.black45,
@@ -221,6 +379,45 @@ class IncidentDetailSheet extends StatelessWidget {
     );
   }
 
+  void _showFullImage(BuildContext context, String url) {
+    showDialog(
+      context: context,
+      builder: (_) => Dialog(
+        backgroundColor: Colors.transparent,
+        insetPadding: const EdgeInsets.all(16),
+        child: Stack(
+          children: [
+            Center(
+              child: ClipRRect(
+                borderRadius: BorderRadius.circular(12),
+                child: CachedNetworkImage(
+                  imageUrl: url,
+                  fit: BoxFit.contain,
+                ),
+              ),
+            ),
+            Positioned(
+              top: 8,
+              right: 8,
+              child: GestureDetector(
+                onTap: () => Navigator.of(context).pop(),
+                child: Container(
+                  padding: const EdgeInsets.all(8),
+                  decoration: const BoxDecoration(
+                    color: Colors.black54,
+                    shape: BoxShape.circle,
+                  ),
+                  child:
+                      const Icon(Icons.close, color: Colors.white, size: 20),
+                ),
+              ),
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+
   Widget _infoRow(IconData icon, String text, bool isDark) {
     return Row(
       crossAxisAlignment: CrossAxisAlignment.start,
@@ -228,7 +425,7 @@ class IncidentDetailSheet extends StatelessWidget {
         Icon(
           icon,
           size: 18,
-          color: PredatorTheme.primaryRed,
+          color: VigileTheme.primaryRed,
         ),
         const SizedBox(width: 10),
         Expanded(
@@ -254,6 +451,8 @@ class IncidentDetailSheet extends StatelessWidget {
         return Colors.purple;
       case IncidentType.other:
         return Colors.amber;
+      case IncidentType.individual:
+        return Colors.black;
     }
   }
 
@@ -267,6 +466,8 @@ class IncidentDetailSheet extends StatelessWidget {
         return Icons.dangerous_outlined;
       case IncidentType.other:
         return Icons.info_outline;
+      case IncidentType.individual:
+        return Icons.person;
     }
   }
 
@@ -280,6 +481,8 @@ class IncidentDetailSheet extends StatelessWidget {
         return l10n.violence;
       case IncidentType.other:
         return l10n.other;
+      case IncidentType.individual:
+        return 'Individu';
     }
   }
 }

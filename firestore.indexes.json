@@ -1,0 +1,36 @@
+{
+  "indexes": [
+    {
+      "collectionGroup": "incidents",
+      "queryScope": "COLLECTION",
+      "fields": [
+        { "fieldPath": "status", "order": "ASCENDING" },
+        { "fieldPath": "createdAt", "order": "DESCENDING" }
+      ]
+    },
+    {
+      "collectionGroup": "incidents",
+      "queryScope": "COLLECTION",
+      "fields": [
+        { "fieldPath": "verifiedBy", "order": "ASCENDING" },
+        { "fieldPath": "verifiedAt", "order": "DESCENDING" }
+      ]
+    },
+    {
+      "collectionGroup": "convicted_persons",
+      "queryScope": "COLLECTION",
+      "fields": [
+        { "fieldPath": "status", "order": "ASCENDING" },
+        { "fieldPath": "createdAt", "order": "DESCENDING" }
+      ]
+    },
+    {
+      "collectionGroup": "convicted_persons",
+      "queryScope": "COLLECTION",
+      "fields": [
+        { "fieldPath": "verifiedBy", "order": "ASCENDING" },
+        { "fieldPath": "verifiedAt", "order": "DESCENDING" }
+      ]
+    }
+  ]
+}

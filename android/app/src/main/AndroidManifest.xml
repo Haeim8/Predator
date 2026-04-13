@@ -3,17 +3,16 @@
     <uses-permission android:name="android.permission.INTERNET"/>
     <uses-permission android:name="android.permission.ACCESS_FINE_LOCATION"/>
     <uses-permission android:name="android.permission.ACCESS_COARSE_LOCATION"/>
-    <uses-permission android:name="android.permission.ACCESS_BACKGROUND_LOCATION"/>
 
     <application
-        android:label="Predator"
+        android:label="Vigile"
         android:name="${applicationName}"
         android:icon="@mipmap/ic_launcher">
 
         <!-- Google Maps API Key -->
         <meta-data
             android:name="com.google.android.geo.API_KEY"
-            android:value="YOUR_GOOGLE_MAPS_API_KEY"/>
+            android:value="AIzaSyC9GM2KBGkuAFU-b3Rgk2z7kQM3Wdi8BvU"/>
 
         <!-- AdMob App ID -->
         <meta-data

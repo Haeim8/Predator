@@ -57,7 +57,7 @@ class _SplashScreenState extends State<SplashScreen>
     final isDark = Theme.of(context).brightness == Brightness.dark;
 
     return Scaffold(
-      backgroundColor: isDark ? PredatorTheme.darkBg : Colors.white,
+      backgroundColor: isDark ? VigileTheme.darkBg : Colors.white,
       body: Center(
         child: Column(
           mainAxisAlignment: MainAxisAlignment.center,
@@ -70,13 +70,13 @@ class _SplashScreenState extends State<SplashScreen>
                 shape: BoxShape.circle,
                 gradient: const RadialGradient(
                   colors: [
-                    PredatorTheme.primaryRed,
-                    PredatorTheme.darkRed,
+                    VigileTheme.primaryRed,
+                    VigileTheme.darkRed,
                   ],
                 ),
                 boxShadow: [
                   BoxShadow(
-                    color: PredatorTheme.primaryRed.withValues(alpha: 0.4),
+                    color: VigileTheme.primaryRed.withValues(alpha: 0.4),
                     blurRadius: 30,
                     spreadRadius: 5,
                   ),
@@ -103,12 +103,12 @@ class _SplashScreenState extends State<SplashScreen>
             const SizedBox(height: 32),
             // App name
             Text(
-              'PREDATOR',
+              'VIGILE',
               style: TextStyle(
                 fontSize: 42,
                 fontWeight: FontWeight.w700,
                 letterSpacing: 12,
-                color: isDark ? Colors.white : PredatorTheme.darkRed,
+                color: isDark ? Colors.white : VigileTheme.darkRed,
               ),
             )
                 .animate()
@@ -123,7 +123,7 @@ class _SplashScreenState extends State<SplashScreen>
                 letterSpacing: 6,
                 color: isDark
                     ? Colors.white54
-                    : PredatorTheme.darkRed.withValues(alpha: 0.6),
+                    : VigileTheme.darkRed.withValues(alpha: 0.6),
               ),
             )
                 .animate()
@@ -136,7 +136,7 @@ class _SplashScreenState extends State<SplashScreen>
               child: CircularProgressIndicator(
                 strokeWidth: 2,
                 valueColor: AlwaysStoppedAnimation<Color>(
-                  PredatorTheme.primaryRed.withValues(alpha: 0.6),
+                  VigileTheme.primaryRed.withValues(alpha: 0.6),
                 ),
               ),
             ).animate().fadeIn(delay: 1200.ms, duration: 400.ms),

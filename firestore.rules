@@ -1,17 +1,45 @@
 rules_version = '2';
 service cloud.firestore {
   match /databases/{database}/documents {
-    // Incidents collection
+
+    // ── Incidents ──
     match /incidents/{incidentId} {
-      // Anyone can read verified incidents (public app)
-      allow read: if resource.data.status == 1; // IncidentStatus.verified
+      // Public: verified only. Journalists: all statuses.
+      allow read: if resource.data.status == 1
+                  || (request.auth != null
+                      && exists(/databases/$(database)/documents/journalists/$(request.auth.uid)));
 
-      // Anyone can create (submit) a new incident
-      allow create: if request.resource.data.keys().hasAll(['latitude', 'longitude', 'address', 'description', 'type', 'status', 'dateTime', 'createdAt'])
-                    && request.resource.data.status == 0; // Must be pending
+      // Authenticated users can create with status forced to 0 (pending)
+      allow create: if request.auth != null
+                    && request.resource.data.status == 0
+                    && request.resource.data.keys().hasAll(['description', 'latitude', 'longitude', 'type', 'status', 'createdAt']);
 
-      // Only admin can update/delete (for moderation)
-      allow update, delete: if false; // Handle via Firebase Admin SDK
+      // Only journalists can update
+      allow update: if request.auth != null
+                    && exists(/databases/$(database)/documents/journalists/$(request.auth.uid));
+    }
+
+    // ── Convicted Persons ──
+    match /convicted_persons/{personId} {
+      // Public: verified only. Journalists: all statuses.
+      allow read: if resource.data.status == 1
+                  || (request.auth != null
+                      && exists(/databases/$(database)/documents/journalists/$(request.auth.uid)));
+
+      // Authenticated users can create with status forced to 0 (pending)
+      allow create: if request.auth != null
+                    && request.resource.data.status == 0
+                    && request.resource.data.keys().hasAll(['firstName', 'lastName', 'facts', 'status', 'createdAt']);
+
+      // Only journalists can update
+      allow update: if request.auth != null
+                    && exists(/databases/$(database)/documents/journalists/$(request.auth.uid));
+    }
+
+    // ── Journalists ──
+    match /journalists/{journalistId} {
+      // Read/write only by the owner
+      allow read, write: if request.auth != null && request.auth.uid == journalistId;
     }
   }
 }

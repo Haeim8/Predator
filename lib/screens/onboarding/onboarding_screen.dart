@@ -41,10 +41,12 @@ class _OnboardingScreenState extends State<OnboardingScreen> {
             : const EdgeInsets.symmetric(horizontal: 40, vertical: 24),
         title: Row(
           children: [
-            const Icon(Icons.gavel, color: PredatorTheme.primaryRed),
+            const Icon(Icons.gavel, color: VigileTheme.primaryRed),
             const SizedBox(width: 12),
-            Text(l10n.termsTitle,
-                style: const TextStyle(fontWeight: FontWeight.w700)),
+            Flexible(
+              child: Text(l10n.termsTitle,
+                  style: const TextStyle(fontWeight: FontWeight.w700)),
+            ),
           ],
         ),
         content: SizedBox(
@@ -144,8 +146,8 @@ class _OnboardingScreenState extends State<OnboardingScreen> {
                   begin: Alignment.topLeft,
                   end: Alignment.bottomRight,
                   colors: [
-                    PredatorTheme.darkRed,
-                    PredatorTheme.primaryRed.withValues(alpha: 0.8),
+                    VigileTheme.darkRed,
+                    VigileTheme.primaryRed.withValues(alpha: 0.8),
                     const Color(0xFF1A0000),
                   ],
                 ),
@@ -176,7 +178,7 @@ class _OnboardingScreenState extends State<OnboardingScreen> {
                         .shimmer(duration: 1500.ms, color: Colors.white24),
                     const SizedBox(height: 36),
                     const Text(
-                      'PREDATOR',
+                      'VIGILE',
                       style: TextStyle(
                         fontSize: 52,
                         fontWeight: FontWeight.w700,
@@ -216,7 +218,7 @@ class _OnboardingScreenState extends State<OnboardingScreen> {
           Expanded(
             flex: 5,
             child: Container(
-              color: isDark ? PredatorTheme.darkBg : Colors.white,
+              color: isDark ? VigileTheme.darkBg : Colors.white,
               child: SafeArea(
                 child: Column(
                   children: [
@@ -259,7 +261,7 @@ class _OnboardingScreenState extends State<OnboardingScreen> {
                             effect: WormEffect(
                               dotHeight: 10,
                               dotWidth: 10,
-                              activeDotColor: PredatorTheme.primaryRed,
+                              activeDotColor: VigileTheme.primaryRed,
                               dotColor:
                                   isDark ? Colors.white24 : Colors.black12,
                             ),
@@ -360,7 +362,7 @@ class _OnboardingScreenState extends State<OnboardingScreen> {
                     effect: WormEffect(
                       dotHeight: 8,
                       dotWidth: 8,
-                      activeDotColor: PredatorTheme.primaryRed,
+                      activeDotColor: VigileTheme.primaryRed,
                       dotColor: isDark ? Colors.white24 : Colors.black12,
                     ),
                   ),
@@ -450,10 +452,10 @@ class _OnboardingPage extends StatelessWidget {
             height: iconContainerSize,
             decoration: BoxDecoration(
               shape: BoxShape.circle,
-              color: PredatorTheme.primaryRed.withValues(alpha: 0.1),
+              color: VigileTheme.primaryRed.withValues(alpha: 0.1),
             ),
             child: Icon(data.icon,
-                size: iconSize, color: PredatorTheme.primaryRed),
+                size: iconSize, color: VigileTheme.primaryRed),
           )
               .animate()
               .scale(
@@ -516,12 +518,12 @@ class _OnboardingPage extends StatelessWidget {
                       Container(
                         padding: const EdgeInsets.all(8),
                         decoration: BoxDecoration(
-                          color: PredatorTheme.primaryRed
+                          color: VigileTheme.primaryRed
                               .withValues(alpha: 0.1),
                           borderRadius: BorderRadius.circular(8),
                         ),
                         child: Icon(feature.icon,
-                            color: PredatorTheme.primaryRed, size: 20),
+                            color: VigileTheme.primaryRed, size: 20),
                       ),
                       const SizedBox(width: 12),
                       Text(
@@ -551,28 +553,28 @@ class _OnboardingPage extends StatelessWidget {
                   borderRadius: BorderRadius.circular(16),
                   border: Border.all(
                       color:
-                          PredatorTheme.primaryRed.withValues(alpha: 0.3)),
+                          VigileTheme.primaryRed.withValues(alpha: 0.3)),
                 ),
                 child: isDesktop
                     ? Row(
                         mainAxisAlignment: MainAxisAlignment.spaceEvenly,
                         children: [
                           _stepColumn(Icons.edit_note, 'Signaler',
-                              PredatorTheme.primaryRed, isDark),
+                              VigileTheme.primaryRed, isDark),
                           Icon(Icons.arrow_forward,
                               color: isDark ? Colors.white24 : Colors.black12),
                           _stepColumn(Icons.verified_user, 'Vérifier',
-                              PredatorTheme.accentOrange, isDark),
+                              VigileTheme.accentOrange, isDark),
                           Icon(Icons.arrow_forward,
                               color: isDark ? Colors.white24 : Colors.black12),
                           _stepColumn(Icons.public, 'Publier',
-                              PredatorTheme.safeGreen, isDark),
+                              VigileTheme.safeGreen, isDark),
                         ],
                       )
                     : Column(
                         children: [
                           Icon(Icons.verified_user,
-                              size: 40, color: PredatorTheme.safeGreen),
+                              size: 40, color: VigileTheme.safeGreen),
                           const SizedBox(height: 12),
                           Text(
                             '✓ Report → ✓ Team Verifies → ✓ Alert Published',
@@ -598,14 +600,14 @@ class _OnboardingPage extends StatelessWidget {
     return Container(
       padding: const EdgeInsets.symmetric(horizontal: 24, vertical: 20),
       decoration: BoxDecoration(
-        color: PredatorTheme.primaryRed.withValues(alpha: 0.08),
+        color: VigileTheme.primaryRed.withValues(alpha: 0.08),
         borderRadius: BorderRadius.circular(16),
         border:
-            Border.all(color: PredatorTheme.primaryRed.withValues(alpha: 0.15)),
+            Border.all(color: VigileTheme.primaryRed.withValues(alpha: 0.15)),
       ),
       child: Column(
         children: [
-          Icon(feature.icon, color: PredatorTheme.primaryRed, size: 28),
+          Icon(feature.icon, color: VigileTheme.primaryRed, size: 28),
           const SizedBox(height: 10),
           Text(
             feature.label,

@@ -1,0 +1,36 @@
+rules_version = '2';
+service firebase.storage {
+  match /b/{bucket}/o {
+
+    // ── Journalist press card ──
+    match /journalists/{uid}/press_card.jpg {
+      allow read, write: if request.auth != null
+                         && request.auth.uid == uid
+                         && request.resource.size < 10 * 1024 * 1024
+                         && request.resource.contentType.matches('image/.*');
+    }
+
+    // ── Incident media ──
+    match /incidents/{itemId}/{media} {
+      allow read: if true;
+      allow write: if request.auth != null
+                   && request.resource.size < 50 * 1024 * 1024
+                   && (request.resource.contentType.matches('image/.*')
+                       || request.resource.contentType.matches('video/.*'));
+    }
+
+    // ── Convicted person media ──
+    match /convicted_persons/{itemId}/{media} {
+      allow read: if true;
+      allow write: if request.auth != null
+                   && request.resource.size < 50 * 1024 * 1024
+                   && (request.resource.contentType.matches('image/.*')
+                       || request.resource.contentType.matches('video/.*'));
+    }
+
+    // ── Deny everything else ──
+    match /{allPaths=**} {
+      allow read, write: if false;
+    }
+  }
+}

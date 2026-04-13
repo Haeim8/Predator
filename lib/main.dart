@@ -2,13 +2,14 @@ import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:provider/provider.dart';
 import 'package:flutter_localizations/flutter_localizations.dart';
+import 'package:firebase_core/firebase_core.dart';
+import 'package:firebase_auth/firebase_auth.dart';
+import 'package:flutter/foundation.dart' show kDebugMode;
 import 'package:predator/l10n/app_localizations.dart';
 import 'core/theme.dart';
+import 'firebase_options.dart';
 import 'services/incident_provider.dart';
 import 'screens/splash/splash_screen.dart';
-
-/// Set to true to run without Firebase (demo/preview mode)
-const bool kDemoMode = true;
 
 Future<void> main() async {
   WidgetsFlutterBinding.ensureInitialized();
@@ -25,9 +26,10 @@ Future<void> main() async {
     DeviceOrientation.portraitDown,
   ]);
 
-  if (!kDemoMode) {
-    // Initialize Firebase only in production
-    // await Firebase.initializeApp(options: DefaultFirebaseOptions.currentPlatform);
+  await Firebase.initializeApp(options: DefaultFirebaseOptions.currentPlatform);
+
+  if (kDebugMode) {
+    FirebaseAuth.instance.setSettings(appVerificationDisabledForTesting: true);
   }
 
   runApp(const PredatorApp());
@@ -41,10 +43,10 @@ class PredatorApp extends StatelessWidget {
     return ChangeNotifierProvider(
       create: (_) => IncidentProvider(),
       child: MaterialApp(
-        title: 'Predator',
+        title: 'Vigile',
         debugShowCheckedModeBanner: false,
-        theme: PredatorTheme.lightTheme,
-        darkTheme: PredatorTheme.darkTheme,
+        theme: VigileTheme.lightTheme,
+        darkTheme: VigileTheme.darkTheme,
         themeMode: ThemeMode.system,
         localizationsDelegates: const [
           AppLocalizations.delegate,

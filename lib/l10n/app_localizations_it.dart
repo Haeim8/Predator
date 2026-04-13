@@ -9,7 +9,7 @@ class AppLocalizationsIt extends AppLocalizations {
   AppLocalizationsIt([String locale = 'it']) : super(locale);
 
   @override
-  String get appName => 'Predator';
+  String get appName => 'Vigile';
 
   @override
   String get onboardingTitle1 => 'Proteggi la Tua Comunità';

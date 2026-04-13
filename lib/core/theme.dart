@@ -1,7 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:google_fonts/google_fonts.dart';
 
-class PredatorTheme {
+class VigileTheme {
   // Brand colors
   static const Color primaryRed = Color(0xFFE53935);
   static const Color darkRed = Color(0xFFB71C1C);

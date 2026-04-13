@@ -1,0 +1,39 @@
+{
+  "flutter": {
+    "platforms": {
+      "android": {
+        "default": {
+          "projectId": "predator-vtest",
+          "appId": "1:859523916020:android:7264e37bca257878fffea1",
+          "fileOutput": "android/app/google-services.json"
+        }
+      },
+      "ios": {
+        "default": {
+          "projectId": "predator-vtest",
+          "appId": "1:859523916020:ios:12f1c04a8e75bb43fffea1",
+          "uploadDebugSymbols": false,
+          "fileOutput": "ios/Runner/GoogleService-Info.plist"
+        }
+      },
+      "dart": {
+        "lib/firebase_options.dart": {
+          "projectId": "predator-vtest",
+          "configurations": {
+            "android": "1:859523916020:android:7264e37bca257878fffea1",
+            "ios": "1:859523916020:ios:12f1c04a8e75bb43fffea1",
+            "web": "1:859523916020:web:501f96004366c1aefffea1"
+          }
+        }
+      }
+    }
+  },
+  "firestore": {
+    "rules": "firestore.rules",
+    "database": "predatoris",
+    "indexes": "firestore.indexes.json"
+  },
+  "storage": {
+    "rules": "storage.rules"
+  }
+}

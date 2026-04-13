@@ -1,6 +1,7 @@
 import 'dart:async';
 import 'package:flutter/material.dart';
-import 'package:google_maps_flutter/google_maps_flutter.dart';
+import 'package:flutter_map/flutter_map.dart';
+import 'package:latlong2/latlong.dart';
 import 'package:provider/provider.dart';
 import 'package:flutter_animate/flutter_animate.dart';
 import 'package:predator/l10n/app_localizations.dart';
@@ -10,7 +11,10 @@ import '../../services/incident_provider.dart';
 import '../../services/location_service.dart';
 import '../../widgets/incident_detail_sheet.dart';
 import '../../widgets/report_incident_sheet.dart';
-import '../../widgets/location_permission_dialog.dart';
+import '../../widgets/persons_list_sheet.dart';
+import '../../models/convicted_person.dart';
+import '../../services/firestore_service.dart';
+import '../journalist/journalist_login_screen.dart';
 
 class MapScreen extends StatefulWidget {
   const MapScreen({super.key});
@@ -20,30 +24,13 @@ class MapScreen extends StatefulWidget {
 }
 
 class _MapScreenState extends State<MapScreen> {
-  GoogleMapController? _mapController;
+  final MapController _mapController = MapController();
   final LocationService _locationService = LocationService();
   final TextEditingController _searchController = TextEditingController();
 
   LatLng _currentPosition = const LatLng(48.8566, 2.3522);
   bool _locationGranted = false;
-  bool _mapReady = false;
-  Set<Marker> _markers = {};
-
-  static const String _darkMapStyle = '''
-[
-  {"elementType":"geometry","stylers":[{"color":"#212121"}]},
-  {"elementType":"labels.icon","stylers":[{"visibility":"off"}]},
-  {"elementType":"labels.text.fill","stylers":[{"color":"#757575"}]},
-  {"elementType":"labels.text.stroke","stylers":[{"color":"#212121"}]},
-  {"featureType":"administrative","elementType":"geometry","stylers":[{"color":"#757575"}]},
-  {"featureType":"poi","elementType":"geometry","stylers":[{"color":"#181818"}]},
-  {"featureType":"road","elementType":"geometry.fill","stylers":[{"color":"#2c2c2c"}]},
-  {"featureType":"road","elementType":"labels.text.fill","stylers":[{"color":"#8a8a8a"}]},
-  {"featureType":"road.highway","elementType":"geometry","stylers":[{"color":"#3c3c3c"}]},
-  {"featureType":"water","elementType":"geometry","stylers":[{"color":"#000000"}]},
-  {"featureType":"water","elementType":"labels.text.fill","stylers":[{"color":"#3d3d3d"}]}
-]
-''';
+  List<ConvictedPerson> _verifiedPersons = [];
 
   bool _isDesktop(BuildContext context) =>
       MediaQuery.of(context).size.width > 800;
@@ -54,12 +41,13 @@ class _MapScreenState extends State<MapScreen> {
     WidgetsBinding.instance.addPostFrameCallback((_) {
       _checkLocation();
       _loadIncidents();
+      _loadPersons();
     });
   }
 
   @override
   void dispose() {
-    _mapController?.dispose();
+    _mapController.dispose();
     _searchController.dispose();
     super.dispose();
   }
@@ -70,7 +58,7 @@ class _MapScreenState extends State<MapScreen> {
       if (!mounted) return;
 
       if (!granted) {
-        _showLocationDialog();
+        // Pas de blocage, on laisse la carte afficher les incidents
         return;
       }
 
@@ -80,73 +68,72 @@ class _MapScreenState extends State<MapScreen> {
         setState(() {
           _currentPosition = LatLng(position.latitude, position.longitude);
         });
-        _mapController?.animateCamera(
-          CameraUpdate.newLatLngZoom(_currentPosition, 14),
-        );
       }
     } catch (e) {
-      if (mounted) setState(() => _locationGranted = true);
+      // Géoloc échouée, pas grave — les incidents s'affichent quand même
     }
   }
 
-  void _showLocationDialog() {
-    final isWide = _isDesktop(context);
-    showDialog(
-      context: context,
-      barrierDismissible: false,
-      builder: (ctx) => Dialog(
-        insetPadding: isWide
-            ? const EdgeInsets.symmetric(horizontal: 300, vertical: 120)
-            : const EdgeInsets.all(24),
-        backgroundColor: Colors.transparent,
-        child: LocationPermissionDialog(
-          onRetry: () {
-            Navigator.of(ctx).pop();
-            _checkLocation();
-          },
-          onOpenSettings: () {
-            Navigator.of(ctx).pop();
-            _locationService.openLocationSettings();
-          },
-        ),
-      ),
-    );
-  }
 
   Future<void> _loadIncidents() async {
     final provider = context.read<IncidentProvider>();
     await provider.init();
-    _buildMarkers();
+    if (!mounted) return;
+    _fitMapToIncidents(provider.incidents);
   }
 
-  void _buildMarkers() {
-    final provider = context.read<IncidentProvider>();
-    final incidents = provider.incidents;
+  void _fitMapToIncidents(List<Incident> incidents) {
+    if (incidents.isEmpty) return;
 
-    setState(() {
-      _markers = incidents.map((incident) {
-        return Marker(
-          markerId: MarkerId(incident.id),
-          position: LatLng(incident.latitude, incident.longitude),
-          icon: BitmapDescriptor.defaultMarkerWithHue(
-            _getMarkerHue(incident.type),
-          ),
-          onTap: () => _showIncidentDetail(incident),
-        );
-      }).toSet();
-    });
+    double minLat = incidents.first.latitude;
+    double maxLat = incidents.first.latitude;
+    double minLng = incidents.first.longitude;
+    double maxLng = incidents.first.longitude;
+
+    for (final i in incidents) {
+      if (i.latitude < minLat) minLat = i.latitude;
+      if (i.latitude > maxLat) maxLat = i.latitude;
+      if (i.longitude < minLng) minLng = i.longitude;
+      if (i.longitude > maxLng) maxLng = i.longitude;
+    }
+
+    final bounds = LatLngBounds(
+      LatLng(minLat, minLng),
+      LatLng(maxLat, maxLng),
+    );
+
+    _mapController.fitCamera(
+      CameraFit.bounds(bounds: bounds, padding: const EdgeInsets.all(60)),
+    );
   }
 
-  double _getMarkerHue(IncidentType type) {
+  Color _getMarkerColor(IncidentType type) {
     switch (type) {
       case IncidentType.sexualAssault:
-        return BitmapDescriptor.hueRed;
+        return Colors.red;
       case IncidentType.harassment:
-        return BitmapDescriptor.hueOrange;
+        return Colors.orange;
       case IncidentType.violence:
-        return BitmapDescriptor.hueViolet;
+        return Colors.purple;
       case IncidentType.other:
-        return BitmapDescriptor.hueYellow;
+        return Colors.amber;
+      case IncidentType.individual:
+        return Colors.black;
+    }
+  }
+
+  IconData _getMarkerIcon(IncidentType type) {
+    switch (type) {
+      case IncidentType.sexualAssault:
+        return Icons.warning_amber;
+      case IncidentType.harassment:
+        return Icons.report_problem_outlined;
+      case IncidentType.violence:
+        return Icons.dangerous_outlined;
+      case IncidentType.other:
+        return Icons.info_outline;
+      case IncidentType.individual:
+        return Icons.person;
     }
   }
 
@@ -210,14 +197,73 @@ class _MapScreenState extends State<MapScreen> {
     );
   }
 
+  void _showPersonDetail(ConvictedPerson person) {
+    showModalBottomSheet(
+      context: context,
+      isScrollControlled: true,
+      backgroundColor: Colors.transparent,
+      builder: (_) => PersonDetailPublicSheet(person: person),
+    );
+  }
+
+  void _showPersonsSheet() {
+    if (_isDesktop(context)) {
+      showDialog(
+        context: context,
+        builder: (_) => Dialog(
+          backgroundColor: Colors.transparent,
+          insetPadding:
+              const EdgeInsets.symmetric(horizontal: 280, vertical: 40),
+          child: ConstrainedBox(
+            constraints: const BoxConstraints(maxWidth: 560),
+            child: ClipRRect(
+              borderRadius: BorderRadius.circular(24),
+              child: const PersonsListSheet(),
+            ),
+          ),
+        ),
+      );
+      return;
+    }
+    showModalBottomSheet(
+      context: context,
+      isScrollControlled: true,
+      backgroundColor: Colors.transparent,
+      builder: (_) => const PersonsListSheet(),
+    );
+  }
+
+  Future<void> _loadPersons() async {
+    try {
+      final persons = await FirestoreService().getVerifiedPersons();
+      if (!mounted) return;
+      setState(() => _verifiedPersons = persons);
+    } catch (e) {
+      debugPrint('Error loading persons: $e');
+    }
+  }
+
   Future<void> _searchLocation(String query) async {
     if (query.isEmpty) return;
+
+    // Chercher d'abord dans les personnes condamnées par nom/prénom
+    final q = query.toLowerCase();
+    final matchedPerson = _verifiedPersons.where((p) =>
+        p.firstName.toLowerCase().contains(q) ||
+        p.lastName.toLowerCase().contains(q) ||
+        p.fullName.toLowerCase().contains(q));
+
+    if (matchedPerson.isNotEmpty) {
+      // Ouvrir le bottom sheet des personnes avec les résultats
+      _showPersonsSheet();
+      return;
+    }
+
+    // Sinon chercher une adresse/ville
     final location = await _locationService.getCoordinatesFromAddress(query);
     if (location != null && mounted) {
       final latLng = LatLng(location.latitude, location.longitude);
-      _mapController?.animateCamera(
-        CameraUpdate.newLatLngZoom(latLng, 14),
-      );
+      _mapController.move(latLng, 14);
     }
   }
 
@@ -233,37 +279,128 @@ class _MapScreenState extends State<MapScreen> {
           // ── Map (full screen) ──
           Consumer<IncidentProvider>(
             builder: (context, provider, _) {
-              if (_mapReady) {
-                WidgetsBinding.instance.addPostFrameCallback((_) {
-                  _buildMarkers();
-                });
-              }
-              return GoogleMap(
-                initialCameraPosition: CameraPosition(
-                  target: _currentPosition,
-                  zoom: 12,
+              return FlutterMap(
+                mapController: _mapController,
+                options: MapOptions(
+                  initialCenter: _currentPosition,
+                  initialZoom: 12,
+                  minZoom: 3,
+                  maxZoom: 18,
                 ),
-                style: isDark ? _darkMapStyle : null,
-                onMapCreated: (controller) {
-                  _mapController = controller;
-                  setState(() => _mapReady = true);
-                  if (_locationGranted) {
-                    controller.animateCamera(
-                      CameraUpdate.newLatLngZoom(_currentPosition, 14),
-                    );
-                  }
-                },
-                markers: _markers,
-                myLocationEnabled: _locationGranted,
-                myLocationButtonEnabled: false,
-                zoomControlsEnabled: false,
-                mapToolbarEnabled: false,
-                compassEnabled: true,
+                children: [
+                  // Tiles OpenStreetMap
+                  TileLayer(
+                    urlTemplate: isDark
+                        ? 'https://{s}.basemaps.cartocdn.com/dark_all/{z}/{x}/{y}{r}.png'
+                        : 'https://{s}.basemaps.cartocdn.com/rastertiles/voyager/{z}/{x}/{y}{r}.png',
+                    subdomains: const ['a', 'b', 'c', 'd'],
+                    userAgentPackageName: 'com.predator.predator',
+                  ),
+
+                  // Marqueurs des incidents
+                  MarkerLayer(
+                    markers: provider.incidents.map((incident) {
+                      return Marker(
+                        point: LatLng(incident.latitude, incident.longitude),
+                        width: 40,
+                        height: 40,
+                        child: GestureDetector(
+                          onTap: () => _showIncidentDetail(incident),
+                          child: Container(
+                            decoration: BoxDecoration(
+                              color: _getMarkerColor(incident.type),
+                              shape: BoxShape.circle,
+                              boxShadow: [
+                                BoxShadow(
+                                  color: _getMarkerColor(incident.type)
+                                      .withValues(alpha: 0.4),
+                                  blurRadius: 8,
+                                  spreadRadius: 2,
+                                ),
+                              ],
+                            ),
+                            child: Icon(
+                              _getMarkerIcon(incident.type),
+                              color: Colors.white,
+                              size: 20,
+                            ),
+                          ),
+                        ),
+                      );
+                    }).toList(),
+                  ),
+
+                  // Marqueurs des personnes condamnées (noir)
+                  MarkerLayer(
+                    markers: _verifiedPersons
+                        .where((p) =>
+                            p.showAddress &&
+                            p.latitude != null &&
+                            p.longitude != null)
+                        .map((person) {
+                      return Marker(
+                        point: LatLng(person.latitude!, person.longitude!),
+                        width: 40,
+                        height: 40,
+                        child: GestureDetector(
+                          onTap: () => _showPersonDetail(person),
+                          child: Container(
+                            decoration: BoxDecoration(
+                              color: Colors.black,
+                              shape: BoxShape.circle,
+                              border: Border.all(
+                                  color: Colors.white, width: 1.5),
+                              boxShadow: [
+                                BoxShadow(
+                                  color:
+                                      Colors.black.withValues(alpha: 0.5),
+                                  blurRadius: 8,
+                                  spreadRadius: 2,
+                                ),
+                              ],
+                            ),
+                            child: const Icon(
+                              Icons.person,
+                              color: Colors.white,
+                              size: 20,
+                            ),
+                          ),
+                        ),
+                      );
+                    }).toList(),
+                  ),
+
+                  // Position actuelle
+                  if (_locationGranted)
+                    MarkerLayer(
+                      markers: [
+                        Marker(
+                          point: _currentPosition,
+                          width: 24,
+                          height: 24,
+                          child: Container(
+                            decoration: BoxDecoration(
+                              color: Colors.blue,
+                              shape: BoxShape.circle,
+                              border: Border.all(color: Colors.white, width: 3),
+                              boxShadow: [
+                                BoxShadow(
+                                  color: Colors.blue.withValues(alpha: 0.3),
+                                  blurRadius: 10,
+                                  spreadRadius: 3,
+                                ),
+                              ],
+                            ),
+                          ),
+                        ),
+                      ],
+                    ),
+                ],
               );
             },
           ),
 
-          // ── Search bar — centré en haut ──
+          // ── Search bar ──
           Positioned(
             top: MediaQuery.of(context).padding.top + 12,
             left: 0,
@@ -274,7 +411,7 @@ class _MapScreenState extends State<MapScreen> {
                 height: 48,
                 decoration: BoxDecoration(
                   color: isDark
-                      ? PredatorTheme.darkCard.withValues(alpha: 0.95)
+                      ? VigileTheme.darkCard.withValues(alpha: 0.95)
                       : Colors.white.withValues(alpha: 0.95),
                   borderRadius: BorderRadius.circular(12),
                   boxShadow: [
@@ -288,16 +425,57 @@ class _MapScreenState extends State<MapScreen> {
                 child: Row(
                   children: [
                     const SizedBox(width: 14),
-                    const Icon(Icons.remove_red_eye_outlined,
-                        color: PredatorTheme.primaryRed, size: 20),
-                    const SizedBox(width: 6),
-                    Text(
-                      'PREDATOR',
-                      style: TextStyle(
-                        fontSize: 12,
-                        fontWeight: FontWeight.w700,
-                        letterSpacing: 2,
-                        color: PredatorTheme.primaryRed,
+                    PopupMenuButton<String>(
+                      onSelected: (value) {
+                        if (value == 'journalist') {
+                          Navigator.push(
+                            context,
+                            MaterialPageRoute(
+                                builder: (_) => const JournalistLoginScreen()),
+                          );
+                        }
+                      },
+                      offset: const Offset(0, 40),
+                      shape: RoundedRectangleBorder(
+                          borderRadius: BorderRadius.circular(12)),
+                      color: isDark ? VigileTheme.darkCard : Colors.white,
+                      itemBuilder: (_) => [
+                        PopupMenuItem(
+                          value: 'journalist',
+                          child: Row(
+                            children: [
+                              Icon(Icons.badge,
+                                  size: 18, color: VigileTheme.primaryRed),
+                              const SizedBox(width: 10),
+                              Text('Espace Journaliste',
+                                  style: TextStyle(
+                                    fontSize: 13,
+                                    fontWeight: FontWeight.w500,
+                                    color: isDark ? Colors.white : Colors.black87,
+                                  )),
+                            ],
+                          ),
+                        ),
+                      ],
+                      child: Row(
+                        mainAxisSize: MainAxisSize.min,
+                        children: [
+                          const Icon(Icons.remove_red_eye_outlined,
+                              color: VigileTheme.primaryRed, size: 20),
+                          const SizedBox(width: 6),
+                          Text(
+                            'VIGILE',
+                            style: TextStyle(
+                              fontSize: 12,
+                              fontWeight: FontWeight.w700,
+                              letterSpacing: 2,
+                              color: VigileTheme.primaryRed,
+                            ),
+                          ),
+                          const SizedBox(width: 4),
+                          Icon(Icons.arrow_drop_down,
+                              color: VigileTheme.primaryRed, size: 18),
+                        ],
                       ),
                     ),
                     Container(
@@ -346,7 +524,7 @@ class _MapScreenState extends State<MapScreen> {
                 .slideY(begin: -0.3, end: 0),
           ),
 
-          // ── Légende — toujours à droite ──
+          // ── Légende ──
           Positioned(
             top: MediaQuery.of(context).padding.top + 72,
             right: isDesktop ? 20 : 12,
@@ -354,7 +532,7 @@ class _MapScreenState extends State<MapScreen> {
               padding: const EdgeInsets.all(10),
               decoration: BoxDecoration(
                 color: isDark
-                    ? PredatorTheme.darkCard.withValues(alpha: 0.9)
+                    ? VigileTheme.darkCard.withValues(alpha: 0.9)
                     : Colors.white.withValues(alpha: 0.9),
                 borderRadius: BorderRadius.circular(10),
                 boxShadow: [
@@ -375,18 +553,27 @@ class _MapScreenState extends State<MapScreen> {
                   _legendDot(Colors.purple, l10n.violence, isDark),
                   const SizedBox(height: 4),
                   _legendDot(Colors.amber, l10n.other, isDark),
+                  const SizedBox(height: 4),
+                  _legendDot(Colors.black, 'Individu', isDark),
                 ],
               ),
             ).animate().fadeIn(delay: 400.ms, duration: 400.ms),
           ),
 
-          // ── Right toolbar : refresh + location + signaler ──
+          // ── Right toolbar ──
           Positioned(
             bottom: isDesktop ? 24 : 100,
             right: isDesktop ? 20 : 12,
             child: Column(
               mainAxisSize: MainAxisSize.min,
               children: [
+                // Bouton individus
+                _toolButton(
+                  icon: Icons.person_search,
+                  isDark: isDark,
+                  onTap: _showPersonsSheet,
+                ),
+                const SizedBox(height: 8),
                 _toolButton(
                   icon: Icons.refresh,
                   isDark: isDark,
@@ -400,9 +587,7 @@ class _MapScreenState extends State<MapScreen> {
                   isAccent: true,
                   onTap: () {
                     if (_locationGranted) {
-                      _mapController?.animateCamera(
-                        CameraUpdate.newLatLngZoom(_currentPosition, 15),
-                      );
+                      _mapController.move(_currentPosition, 15);
                     } else {
                       _checkLocation();
                     }
@@ -410,9 +595,8 @@ class _MapScreenState extends State<MapScreen> {
                 ),
                 if (isDesktop) ...[
                   const SizedBox(height: 12),
-                  // Bouton signaler compact en bas à droite
                   Material(
-                    color: PredatorTheme.primaryRed,
+                    color: VigileTheme.primaryRed,
                     borderRadius: BorderRadius.circular(12),
                     elevation: 4,
                     child: InkWell(
@@ -442,7 +626,7 @@ class _MapScreenState extends State<MapScreen> {
                 child: Container(
                   padding: const EdgeInsets.all(8),
                   decoration: BoxDecoration(
-                    color: isDark ? PredatorTheme.darkCard : Colors.white,
+                    color: isDark ? VigileTheme.darkCard : Colors.white,
                     shape: BoxShape.circle,
                     boxShadow: [
                       BoxShadow(
@@ -457,7 +641,7 @@ class _MapScreenState extends State<MapScreen> {
                     child: CircularProgressIndicator(
                       strokeWidth: 2,
                       valueColor: AlwaysStoppedAnimation<Color>(
-                          PredatorTheme.primaryRed),
+                          VigileTheme.primaryRed),
                     ),
                   ),
                 ),
@@ -472,12 +656,15 @@ class _MapScreenState extends State<MapScreen> {
           ? null
           : FloatingActionButton.extended(
               onPressed: _showReportSheet,
-              backgroundColor: PredatorTheme.primaryRed,
-              icon: const Icon(Icons.add_alert, color: Colors.white, size: 18),
+              backgroundColor: VigileTheme.primaryRed,
+              icon: const Icon(Icons.add_alert,
+                  color: Colors.white, size: 18),
               label: Text(
                 l10n.reportIncident,
                 style: const TextStyle(
-                    color: Colors.white, fontWeight: FontWeight.w600),
+                    color: Colors.white,
+                    fontWeight: FontWeight.w600,
+                    fontSize: 12),
               ),
             ).animate().fadeIn(delay: 800.ms).slideY(begin: 1, end: 0),
       floatingActionButtonLocation: FloatingActionButtonLocation.centerFloat,
@@ -491,7 +678,7 @@ class _MapScreenState extends State<MapScreen> {
     bool isAccent = false,
   }) {
     return Material(
-      color: isDark ? PredatorTheme.darkCard : Colors.white,
+      color: isDark ? VigileTheme.darkCard : Colors.white,
       borderRadius: BorderRadius.circular(10),
       elevation: 3,
       child: InkWell(
@@ -504,7 +691,7 @@ class _MapScreenState extends State<MapScreen> {
             icon,
             size: 20,
             color: isAccent
-                ? PredatorTheme.primaryRed
+                ? VigileTheme.primaryRed
                 : (isDark ? Colors.white60 : Colors.black45),
           ),
         ),
